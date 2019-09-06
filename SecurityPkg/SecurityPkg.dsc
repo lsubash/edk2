@@ -213,6 +213,11 @@
   SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigDxe.inf
 
   #
+  # Hash API
+  #
+  SecurityPkg/Library/HashApiInstanceSha1/HashApiInstanceSha1.inf
+
+  #
   # TPM
   #
   SecurityPkg/Tcg/TcgPei/TcgPei.inf
