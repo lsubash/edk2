@@ -91,6 +91,7 @@
   Tpm2DeviceLib|SecurityPkg/Library/Tpm2DeviceLibDTpm/Tpm2DeviceLibDTpm.inf
   Tcg2PhysicalPresenceLib|SecurityPkg/Library/PeiTcg2PhysicalPresenceLib/PeiTcg2PhysicalPresenceLib.inf
   RngLib|MdePkg/Library/BaseRngLib/BaseRngLib.inf
+  BaseHashLib|SecurityPkg/Library/BaseHashLib/BaseHashLibPei.inf
 
 [LibraryClasses.common.DXE_DRIVER]
   HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
@@ -182,6 +183,8 @@
   SecurityPkg/Library/Tpm2DeviceLibRouter/Tpm2DeviceLibRouterPei.inf
 
   SecurityPkg/Library/HashLibTpm2/HashLibTpm2.inf
+
+  SecurityPkg/Library/BaseHashLib/BaseHashLibPei.inf
 
   #
   # TCG Storage.

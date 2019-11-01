@@ -27,6 +27,10 @@
   #
   HashLib|Include/Library/HashLib.h
 
+  ##  @libraryclass  Provides hash interfaces from different implementations.
+  #
+  BaseHashLib|Include/Library/HashLib.h
+
   ##  @libraryclass  Provides a platform specific interface to detect physically present user.
   #
   PlatformSecureLib|Include/Library/PlatformSecureLib.h
@@ -495,6 +499,18 @@
   ## This PCD records LASA field in TPM2 ACPI table.
   # @Prompt Tpm2AcpiTableLasa LASA field in TPM2 ACPI table.
   gEfiSecurityPkgTokenSpaceGuid.PcdTpm2AcpiTableLasa|0|UINT64|0x00010023
+
+  [PcdsFixedAtBuild, PcdsPatchableInModule, PcdsDynamic, PcdsDynamicEx]
+  ## This PCD indicates the HASH algorithm to verify for default hash method 
+  #  Based on the value set, the required algorithm is chosen in basehashlib<BR>
+  #     0x00000001    - SHA1.<BR>
+  #     0x00000002    - SHA256.<BR>
+  #     0x00000004    - SHA384.<BR>
+  #     0x00000008    - SHA512.<BR>
+  #     0x00000010    - SM3_256.<BR>
+  # @Prompt Set policy for hashing default policy.
+  # @ValidRange 0x80000001 | 0x00000000 - 0x00000005
+  gEfiSecurityPkgTokenSpaceGuid.PcdSystemHashPolicy|0x02|UINT32|0x00010021
 
 [UserExtensions.TianoCore."ExtraFiles"]
   SecurityPkgExtra.uni

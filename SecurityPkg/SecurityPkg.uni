@@ -295,3 +295,14 @@
 
 #string STR_gEfiSecurityPkgTokenSpaceGuid_PcdTpm2AcpiTableLasa_HELP  #language en-US "This PCD defines LASA of TPM2 ACPI table\n\n"
                                                                                      "0 means this field is unsupported\n"
+
+#string STR_gEfiSecurityPkgTokenSpaceGuid_PcdSystemHashPolicy_PROMPT  #language en-US "HASH algorithm to verify unsigned PE/COFF image"
+
+#string STR_gEfiSecurityPkgTokenSpaceGuid_PcdSystemHashPolicy_HELP  #language en-US "This PCD indicates the default HASH algorithm to wih BaseHash algorithm.<BR><BR>\n"
+                                                                                        "Based on the value set, the required algorithm is chosen to verify\n"
+                                                                                        "0x00000000  -  SHA1.<BR>\n"
+                                                                                        "0x00000001  -  SHA224.<BR>"
+                                                                                        "0x00000002  -  SHA256.<BR>\n"
+                                                                                        "0x00000003  -  SHA384.<BR>\n"
+                                                                                        "0x00000004  -  SHA512.<BR>\n"
+                                                                                        "0x00000005  -  SM3.<BR>"
