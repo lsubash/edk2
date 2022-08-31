@@ -8,6 +8,17 @@
 **/
 #include "BlSupportDxe.h"
 
+
+#include <Guid/TcgEventHob.h>
+#include <Guid/TpmInstance.h>
+#include <Library/DebugLib.h>
+#include <Library/Tpm2CommandLib.h>
+#include <Library/Tpm2DeviceLib.h>
+#include <Library/PcdLib.h>
+#include <Protocol/Tcg2Protocol.h>
+#include <Guid/TpmEventLogInfoGuid.h>
+#include <Guid/SecureBootInfoGuid.h>
+
 /**
   Reserve MMIO/IO resource in GCD
 
@@ -86,6 +97,42 @@ ReserveResourceInGcd (
   return Status;
 }
 
+
+/**
+Sync the TPM PCD as per the information passed from Bootloader.
+**/
+EFI_STATUS
+BlSupportSyncSecurityPcd (
+  VOID
+  )
+{
+  EFI_STATUS                        Status;
+  EFI_HOB_GUID_TYPE                 *GuidHob;
+  SECUREBOOT_INFO                   *SecurebootInfoHob;
+
+  DEBUG ((EFI_D_ERROR, "BlSupportSyncSecurityPcd!\n"));
+  GuidHob = GetFirstGuidHob (&gSecureBootInfoGuid);
+  if (GuidHob == NULL) {
+    DEBUG ((EFI_D_ERROR, "gSecureBootInfoGuid Not Found!\n"));
+    return EFI_UNSUPPORTED;
+  }
+
+  SecurebootInfoHob = (SECUREBOOT_INFO *) GET_GUID_HOB_DATA(GuidHob);
+
+  // Sync the Hash mask for TPM 2.0 as per active PCR banks.
+  // Make sure that the current PCR allocations, the TPM supported PCRs,
+  // and the PcdTpm2HashMask are all in agreement.
+  Status = PcdSet32S (PcdTpm2HashMask, SecurebootInfoHob->PcrActivePcrBanks);
+  ASSERT_EFI_ERROR (Status);
+
+  // Set the Firmware debugger PCD
+  Status = PcdSetBoolS (PcdFirmwareDebuggerInitialized, SecurebootInfoHob->FirmwareDebuggerInitialized);
+  ASSERT_EFI_ERROR (Status);
+
+  return Status;
+}
+
+
 /**
   Main entry for the bootloader support DXE module.
 
@@ -114,7 +161,7 @@ BlDxeEntryPoint (
   //
   ReserveResourceInGcd (TRUE, EfiGcdMemoryTypeMemoryMappedIo, 0xFEC00000, SIZE_4KB, 0, ImageHandle); // IOAPIC
 
-  ReserveResourceInGcd (TRUE, EfiGcdMemoryTypeMemoryMappedIo, 0xFED00000, SIZE_1KB, 0, ImageHandle); // HPET
+   (TRUE, EfiGcdMemoryTypeMemoryMappedIo, 0xFED00000, SIZE_1KB, 0, ImageHandle); // HPET
 
   //
   // Find the frame buffer information and update PCDs
@@ -143,6 +190,8 @@ BlDxeEntryPoint (
     Status = PcdSet64S (PcdPciExpressBaseSize, AcpiBoardInfo->PcieBaseSize);
     ASSERT_EFI_ERROR (Status);
   }
+
+  BlSupportSyncSecurityPcd();
 
   return EFI_SUCCESS;
 }

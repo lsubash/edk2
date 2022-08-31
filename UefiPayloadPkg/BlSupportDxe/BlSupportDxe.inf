@@ -30,6 +30,7 @@
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
+  SecurityPkg/SecurityPkg.dec
   UefiPayloadPkg/UefiPayloadPkg.dec
 
 [LibraryClasses]
@@ -40,10 +41,14 @@
   BaseMemoryLib
   UefiLib
   HobLib
+  Tpm2CommandLib
 
 [Guids]
   gUefiAcpiBoardInfoGuid
   gEfiGraphicsInfoHobGuid
+  gTcgEvent2EntryHobGuid                                               ## PRODUCES               ## HOB
+  gTpmEventLogInfoGuid
+  gSecureBootInfoGuid
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdVideoHorizontalResolution
@@ -52,6 +57,10 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdSetupVideoVerticalResolution
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseSize
+  ## SOMETIMES_CONSUMES
+  ## SOMETIMES_PRODUCES
+  gEfiSecurityPkgTokenSpaceGuid.PcdTpm2HashMask
+  gEfiSecurityPkgTokenSpaceGuid.PcdFirmwareDebuggerInitialized
 
 [Depex]
   TRUE
