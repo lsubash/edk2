@@ -39,6 +39,8 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include <Library/Tpm2CommandLib.h>
 #include <Library/UefiLib.h>
 #include <Library/MmUnblockMemoryLib.h>
+#include <IndustryStandard/Acpi.h>
+#include <Protocol/AcpiSystemDescriptionTable.h>
 
 //
 // Physical Presence Interface Version supported by Platform
@@ -761,6 +763,8 @@ PublishAcpiTable (
   return Status;
 }
 
+
+
 /**
   Publish TPM2 ACPI table
 
@@ -862,6 +866,246 @@ PublishTpm2 (
 }
 
 /**
+  Publish TPM2 SSDT ACPI table
+
+  @retval   EFI_SUCCESS     The TPM2 ACPI table is uninstalled successfully if found.
+  @retval   Others          Operation error.
+
+**/
+
+EFI_STATUS
+UnInstallTpm2SSDTAcpiTables (
+  )
+{
+  UINTN                                         TableIndex;
+  UINTN                                         TableKey;
+  EFI_ACPI_TABLE_VERSION                        TableVersion;
+  VOID                                          *TableHeader;
+  EFI_STATUS                                    Status;
+  EFI_ACPI_SDT_PROTOCOL       *mAcpiSdtProtocol   = NULL;
+  EFI_ACPI_TABLE_PROTOCOL       *mAcpiTableProtocol = NULL;
+  CHAR8 TableIdString[8];
+  UINT64 TableIdSignature;
+
+  //
+  // Determine whether there is a TPM2 SSDT already in the ACPI table.
+  //
+  Status      = EFI_SUCCESS;
+  TableIndex  = 0;
+  TableKey    = 0;
+  TableHeader = NULL;
+
+  //
+  // Locate the EFI_ACPI_TABLE_PROTOCOL.
+  //
+  Status = gBS->LocateProtocol (
+                  &gEfiAcpiTableProtocolGuid,
+                  NULL,
+                  (VOID **)&mAcpiTableProtocol
+                  );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((
+      EFI_D_INFO,
+      "UnInstallTpm2SSDTAcpiTables: Cannot locate the EFI ACPI Table Protocol \n "
+      ));
+    return Status;
+  }
+
+   //
+  // Locate the EFI_ACPI_SDT_PROTOCOL.
+  //
+  Status = gBS->LocateProtocol (
+                  &gEfiAcpiSdtProtocolGuid,
+                  NULL,
+                  (VOID **)&mAcpiSdtProtocol
+                  );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((
+      EFI_D_INFO,
+      "UnInstallTpm2SSDTAcpiTables: Cannot locate the EFI ACPI Sdt Protocol, "
+      "\n"
+      ));
+    return Status;
+  }
+
+  while (!EFI_ERROR (Status)) {
+    Status = mAcpiSdtProtocol->GetAcpiTable (
+                                 TableIndex,
+                                 (EFI_ACPI_SDT_HEADER **)&TableHeader,
+                                 &TableVersion,
+                                 &TableKey
+                                 );
+
+    if (!EFI_ERROR (Status)) {
+      TableIndex++;
+
+      if (((EFI_ACPI_SDT_HEADER *)TableHeader)->Signature == SIGNATURE_32 ('S', 'S', 'D', 'T'))  {
+        CopyMem ((VOID *) TableIdString, (VOID *) ((EFI_ACPI_SDT_HEADER *)TableHeader)->OemTableId, sizeof(TableIdString));
+
+        TableIdSignature = SIGNATURE_64 ( TableIdString [0],
+                                          TableIdString [1],
+                                          TableIdString [2],
+                                          TableIdString [3],
+                                          TableIdString [4],
+                                          TableIdString [5],
+                                          TableIdString [6],
+                                          TableIdString [7]
+                                          );
+
+        if (TableIdSignature == SIGNATURE_64 ('T', 'p', 'm', '2', 'T', 'a', 'b', 'l')) {
+          DEBUG ((EFI_D_INFO, "Found Tpm2 SSDT Table for Physical Presence\n"));
+          //for (i=0; i<8; i++) {
+          //  DEBUG((DEBUG_INFO, "%c", ((EFI_ACPI_SDT_HEADER *)TableHeader)->OemTableId[i]));
+          //}
+          break;
+        }
+      }
+    }
+  }
+
+  if (!EFI_ERROR (Status)) {
+    //
+    // A TPM2 SSDT is already in the ACPI table.
+    //
+    DEBUG ((
+      EFI_D_INFO,
+      "A TPM2 SSDT is already exist in the ACPI Table.\n"
+      ));
+
+
+    //
+    // Uninstall the origin TPM2 SSDT from the ACPI table.
+    //
+    Status = mAcpiTableProtocol->UninstallAcpiTable (
+                                   mAcpiTableProtocol,
+                                   TableKey
+                                   );
+    ASSERT_EFI_ERROR (Status);
+
+    if (EFI_ERROR (Status)) {
+         DEBUG ((EFI_D_INFO,"UnInstall Tpm2SSDTAcpiTables failed \n "));
+
+      return Status;
+    }
+  }
+
+  return EFI_SUCCESS;
+}
+
+
+/**
+  Publish TPM2 table
+
+  @retval   EFI_SUCCESS     The TPM2 table is uninstalled successfully if its found.
+  @retval   Others          Operation error.
+
+**/
+
+EFI_STATUS
+UnInstallTpm2Tables (
+  )
+{
+  UINTN                                         TableIndex;
+  UINTN                                         TableKey;
+  EFI_ACPI_TABLE_VERSION                        TableVersion;
+  VOID                                          *TableHeader;
+  EFI_STATUS                                    Status;
+  EFI_ACPI_SDT_PROTOCOL       *mAcpiSdtProtocol   = NULL;
+  EFI_ACPI_TABLE_PROTOCOL       *mAcpiTableProtocol = NULL;
+
+
+  //
+  // Determine whether there is a TPM2 SSDT already in the ACPI table.
+  //
+  Status      = EFI_SUCCESS;
+  TableIndex  = 0;
+  TableKey    = 0;
+  TableHeader = NULL;
+
+  //
+  // Locate the EFI_ACPI_TABLE_PROTOCOL.
+  //
+  Status = gBS->LocateProtocol (
+                  &gEfiAcpiTableProtocolGuid,
+                  NULL,
+                  (VOID **)&mAcpiTableProtocol
+                  );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((
+      EFI_D_INFO,
+      "UnInstallTpm2Tables: Cannot locate the EFI ACPI Table Protocol \n "
+      ));
+    return Status;
+  }
+
+   //
+  // Locate the EFI_ACPI_SDT_PROTOCOL.
+  //
+  Status = gBS->LocateProtocol (
+                  &gEfiAcpiSdtProtocolGuid,
+                  NULL,
+                  (VOID **)&mAcpiSdtProtocol
+                  );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((
+      EFI_D_INFO,
+      "UnInstallTpm2Tables: Cannot locate the EFI ACPI Sdt Protocol, "
+      "\n"
+      ));
+    return Status;
+  }
+
+  while (!EFI_ERROR (Status)) {
+    Status = mAcpiSdtProtocol->GetAcpiTable (
+                                 TableIndex,
+                                 (EFI_ACPI_SDT_HEADER **)&TableHeader,
+                                 &TableVersion,
+                                 &TableKey
+                                 );
+
+    if (!EFI_ERROR (Status)) {
+      TableIndex++;
+
+      if (((EFI_ACPI_SDT_HEADER *)TableHeader)->Signature == EFI_ACPI_5_0_TRUSTED_COMPUTING_PLATFORM_2_TABLE_SIGNATURE )  {
+          DEBUG ((EFI_D_INFO, "Found Tpm2 Table ..\n"));
+          //for (i=0; i<8; i++) {
+          //  DEBUG((DEBUG_INFO, "%c", ((EFI_ACPI_SDT_HEADER *)TableHeader)->OemTableId[i]));
+          //}
+          break;
+      }
+    }
+  }
+
+  if (!EFI_ERROR (Status)) {
+    //
+    // A TPM2 SSDT is already in the ACPI table.
+    //
+    DEBUG ((
+      EFI_D_INFO,
+      "A TPM2 table  is already exist in the ACPI Table.\n"
+      ));
+
+
+    //
+    // Uninstall the origin TPM2 SSDT from the ACPI table.
+    //
+    Status = mAcpiTableProtocol->UninstallAcpiTable (
+                                   mAcpiTableProtocol,
+                                   TableKey
+                                   );
+    ASSERT_EFI_ERROR (Status);
+
+    if (EFI_ERROR (Status)) {
+         DEBUG ((EFI_D_INFO,"UnInstall Tpm2Tables failed \n "));
+
+      return Status;
+    }
+  }
+
+  return EFI_SUCCESS;
+}
+
+/**
   The driver's entry point.
 
   It patches and installs ACPI tables used for handling TPM physical presence
@@ -887,6 +1131,14 @@ InitializeTcgAcpi (
     DEBUG ((DEBUG_ERROR, "No TPM2 DTPM instance required!\n"));
     return EFI_UNSUPPORTED;
   }
+
+  //
+  // Uninstall TPM tables if it exists
+  Status = UnInstallTpm2SSDTAcpiTables ();
+  ASSERT_EFI_ERROR (Status);
+
+  Status = UnInstallTpm2Tables ();
+  ASSERT_EFI_ERROR (Status);
 
   Status = PublishAcpiTable ();
   ASSERT_EFI_ERROR (Status);
