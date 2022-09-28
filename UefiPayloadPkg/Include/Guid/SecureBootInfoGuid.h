@@ -29,7 +29,6 @@ typedef struct {
   UINT8                               MeasuredBootEnabled;
   UINT8                               FirmwareDebuggerInitialized;
   UINT8                               TpmType;
-  UINT8                               Reserved[3];
   UINT32                              TpmPcrActivePcrBanks;
 } SECUREBOOT_INFO;
 #pragma pack()

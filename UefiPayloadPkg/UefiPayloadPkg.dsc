@@ -30,14 +30,16 @@
   DEFINE PS2_KEYBOARD_ENABLE          = FALSE
   DEFINE RAM_DISK_ENABLE              = FALSE
   DEFINE SIO_BUS_ENABLE               = FALSE
-  DEFINE UNIVERSAL_PAYLOAD            = FALSE
+  DEFINE UNIVERSAL_PAYLOAD            = TRUE
   DEFINE SECURITY_STUB_ENABLE         = TRUE
-  DEFINE SMM_SUPPORT                  = FALSE
+  DEFINE SMM_SUPPORT                  = TRUE
   #
   # SBL:      UEFI payload for Slim Bootloader
   # COREBOOT: UEFI payload for coreboot
   #
   DEFINE   BOOTLOADER                 = SBL
+  DEFINE SECURE_BOOT_ENABLE           = TRUE
+  DEFINE MEASURED_BOOT_ENABLE         = TRUE
 
   #
   # CPU options
@@ -96,7 +98,7 @@
   # SPI:      UEFI payload with SPI NV variable support
   # NONE:     UEFI payload with no variable modules
   #
-  DEFINE VARIABLE_SUPPORT      = EMU
+  DEFINE VARIABLE_SUPPORT      = SPI
 
   DEFINE DISABLE_RESET_SYSTEM  = FALSE
   DEFINE NETWORK_DRIVER_ENABLE = FALSE
@@ -220,6 +222,7 @@
   ResetSystemLib|UefiPayloadPkg/Library/ResetSystemLib/ResetSystemLib.inf
   SerialPortLib|MdeModulePkg/Library/BaseSerialPortLib16550/BaseSerialPortLib16550.inf
   PlatformHookLib|UefiPayloadPkg/Library/PlatformHookLib/PlatformHookLib.inf
+
   PlatformBootManagerLib|UefiPayloadPkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf
   IoApicLib|PcAtChipsetPkg/Library/BaseIoApicLib/BaseIoApicLib.inf
 
@@ -247,7 +250,26 @@
   DebugLib|MdePkg/Library/BaseDebugLibSerialPort/BaseDebugLibSerialPort.inf
   LockBoxLib|MdeModulePkg/Library/LockBoxNullLib/LockBoxNullLib.inf
   FileExplorerLib|MdeModulePkg/Library/FileExplorerLib/FileExplorerLib.inf
+  FspWrapperApiLib|IntelFsp2WrapperPkg/Library/BaseFspWrapperApiLib/BaseFspWrapperApiLib.inf
+  FspWrapperPlatformLib|IntelFsp2WrapperPkg/Library/BaseFspWrapperPlatformLibSample/BaseFspWrapperPlatformLibSample.inf
+
+!if $(SECURE_BOOT_ENABLE)
+  AuthVariableLib|SecurityPkg/Library/AuthVariableLib/AuthVariableLib.inf
+  SecureBootVariableLib|SecurityPkg/Library/SecureBootVariableLib/SecureBootVariableLib.inf
+  SecureBootVariableProvisionLib|SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.inf
+!else
   AuthVariableLib|MdeModulePkg/Library/AuthVariableLibNull/AuthVariableLibNull.inf
+!endif
+  #
+  # TPM
+  #
+!if $(MEASURED_BOOT_ENABLE) == TRUE
+  Tpm2CommandLib|SecurityPkg/Library/Tpm2CommandLib/Tpm2CommandLib.inf
+  Tpm2DeviceLib|SecurityPkg/Library/Tpm2DeviceLibTcg2/Tpm2DeviceLibTcg2.inf
+  Tcg2PhysicalPresenceLib|SecurityPkg/Library/DxeTcg2PhysicalPresenceLib/DxeTcg2PhysicalPresenceLib.inf
+  Tcg2PpVendorLib|SecurityPkg/Library/Tcg2PpVendorLibNull/Tcg2PpVendorLibNull.inf
+
+!endif
 !if $(VARIABLE_SUPPORT) == "EMU"
   TpmMeasurementLib|MdeModulePkg/Library/TpmMeasurementLibNull/TpmMeasurementLibNull.inf
 !elseif $(VARIABLE_SUPPORT) == "SPI"
@@ -294,6 +316,9 @@
   MemoryAllocationLib|MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
   ReportStatusCodeLib|MdeModulePkg/Library/RuntimeDxeReportStatusCodeLib/RuntimeDxeReportStatusCodeLib.inf
   VariablePolicyLib|MdeModulePkg/Library/VariablePolicyLib/VariablePolicyLibRuntimeDxe.inf
+!if $(VARIABLE_SUPPORT) == "SPI"
+  BaseCryptLib|CryptoPkg/Library/BaseCryptLib/RuntimeCryptLib.inf
+!endif
 
 [LibraryClasses.common.UEFI_DRIVER,LibraryClasses.common.UEFI_APPLICATION]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
@@ -331,6 +356,10 @@
   BaseCryptLib|CryptoPkg/Library/BaseCryptLib/SmmCryptLib.inf
 !endif
 
+!if $(MEASURED_BOOT_ENABLE) == TRUE
+ Tcg2PhysicalPresenceLib|SecurityPkg/Library/SmmTcg2PhysicalPresenceLib/SmmTcg2PhysicalPresenceLib.inf
+!endif
+
 ################################################################################
 #
 # Pcd Section - list of all EDK II PCD Entries defined by this Platform.
@@ -364,6 +393,17 @@
 
 !if $(SOURCE_DEBUG_ENABLE)
   gEfiSourceLevelDebugPkgTokenSpaceGuid.PcdDebugLoadImageMethod|0x2
+!endif
+!if $(SECURE_BOOT_ENABLE)
+  # override the default values from SecurityPkg to ensure images from all sources are verified in secure boot
+  gEfiSecurityPkgTokenSpaceGuid.PcdOptionRomImageVerificationPolicy|0x04
+  gEfiSecurityPkgTokenSpaceGuid.PcdFixedMediaImageVerificationPolicy|0x04
+  gEfiSecurityPkgTokenSpaceGuid.PcdRemovableMediaImageVerificationPolicy|0x04
+!endif
+# Test code added to enable secure boot menu options enable/disable config option
+# and update custom certificates from secure boot menu
+!if $(SECURE_BOOT_ENABLE) == TRUE
+  gEfiSecurityPkgTokenSpaceGuid.PcdUserPhysicalPresence|TRUE
 !endif
   gUefiCpuPkgTokenSpaceGuid.PcdCpuSmmStackSize|0x4000
 
@@ -467,6 +507,18 @@
   gUefiCpuPkgTokenSpaceGuid.PcdSevEsIsEnabled|0
   gEfiMdeModulePkgTokenSpaceGuid.PcdPciDisableBusEnumeration|TRUE
 
+
+!if $(MEASURED_BOOT_ENABLE) == TRUE
+
+  # (BIT0 - SHA1. BIT1 - SHA256, BIT2 - SHA384, BIT3 - SHA512, BIT4 - SM3_256)
+  gEfiSecurityPkgTokenSpaceGuid.PcdTpm2HashMask|0x000000016
+  gEfiSecurityPkgTokenSpaceGuid.PcdTcg2HashAlgorithmBitmap|0x000000016
+
+  gEfiSecurityPkgTokenSpaceGuid.PcdTpmInstanceGuid|{0x5a, 0xf2, 0x6b, 0x28, 0xc3, 0xc2, 0x8c, 0x40, 0xb3, 0xb4, 0x25, 0xe6, 0x75, 0x8b, 0x73, 0x17}
+  gEfiSecurityPkgTokenSpaceGuid.PcdFirmwareDebuggerInitialized|FALSE
+
+!endif
+
 ################################################################################
 #
 # Components Section - list of all EDK II Modules needed by this Platform.
@@ -508,9 +560,15 @@
   #
   # Components that produce the architectural protocols
   #
-!if $(SECURITY_STUB_ENABLE) == TRUE
-  MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe.inf
+  MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe.inf {
+    <LibraryClasses>
+!if $(SECURE_BOOT_ENABLE)
+      NULL|SecurityPkg/Library/DxeImageVerificationLib/DxeImageVerificationLib.inf
 !endif
+!if $(MEASURED_BOOT_ENABLE) == TRUE
+      NULL|SecurityPkg/Library/DxeTpm2MeasureBootLib/DxeTpm2MeasureBootLib.inf
+!endif
+  }
   UefiCpuPkg/CpuDxe/CpuDxe.inf
   MdeModulePkg/Universal/BdsDxe/BdsDxe.inf
   MdeModulePkg/Application/UiApp/UiApp.inf {
@@ -553,7 +611,14 @@
   MdeModulePkg/Universal/PlatformDriOverrideDxe/PlatformDriOverrideDxe.inf
   MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
 
-  UefiPayloadPkg/BlSupportDxe/BlSupportDxe.inf
+  UefiPayloadPkg/BlSupportDxe/BlSupportDxe.inf {
+   <LibraryClasses>
+!if $(MEASURED_BOOT_ENABLE) == TRUE
+      Tpm2CommandLib|SecurityPkg/Library/Tpm2CommandLib/Tpm2CommandLib.inf
+      #Tpm2DeviceLib|SecurityPkg/Library/Tpm2DeviceLibRouter/Tpm2DeviceLibRouterPei.inf
+      NULL|SecurityPkg/Library/Tpm2DeviceLibDTpm/Tpm2InstanceLibDTpm.inf
+!endif
+  }
 
   #
   # SMBIOS Support
@@ -662,7 +727,47 @@
   UefiPayloadPkg/FvbRuntimeDxe/FvbSmm.inf
   MdeModulePkg/Universal/FaultTolerantWriteDxe/FaultTolerantWriteSmm.inf
   MdeModulePkg/Universal/Variable/RuntimeDxe/VariableSmmRuntimeDxe.inf
+!if $(SECURE_BOOT_ENABLE)
+  SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigDxe.inf
 !endif
+
+!endif
+
+!if $(MEASURED_BOOT_ENABLE) == TRUE
+  SecurityPkg/Tcg/Tcg2Config/Tcg2ConfigDxe.inf {
+  <LibraryClasses>
+      Tpm2CommandLib|SecurityPkg/Library/Tpm2CommandLib/Tpm2CommandLib.inf
+      Tpm2DeviceLib|SecurityPkg/Library/Tpm2DeviceLibRouter/Tpm2DeviceLibRouterDxe.inf
+      NULL|SecurityPkg/Library/Tpm2DeviceLibDTpm/Tpm2InstanceLibDTpm.inf
+  }
+
+  SecurityPkg/Tcg/Tcg2Smm/Tcg2Smm.inf {
+    <LibraryClasses>
+      Tpm2DeviceLib|SecurityPkg/Library/Tpm2DeviceLibTcg2/Tpm2DeviceLibTcg2.inf
+  }
+
+  SecurityPkg/Tcg/Tcg2Dxe/Tcg2Dxe.inf {
+    <LibraryClasses>
+      Tpm2DeviceLib|SecurityPkg/Library/Tpm2DeviceLibRouter/Tpm2DeviceLibRouterDxe.inf
+      HashLib|SecurityPkg/Library/HashLibBaseCryptoRouter/HashLibBaseCryptoRouterDxe.inf
+      NULL|SecurityPkg/Library/Tpm2DeviceLibDTpm/Tpm2InstanceLibDTpm.inf
+      NULL|SecurityPkg/Library/HashInstanceLibSha1/HashInstanceLibSha1.inf
+      NULL|SecurityPkg/Library/HashInstanceLibSha256/HashInstanceLibSha256.inf
+      NULL|SecurityPkg/Library/HashInstanceLibSha384/HashInstanceLibSha384.inf
+      NULL|SecurityPkg/Library/HashInstanceLibSm3/HashInstanceLibSm3.inf
+  }
+  SecurityPkg/Tcg/Tcg2Acpi/Tcg2Acpi.inf
+  SecurityPkg/Tcg/Tcg2PlatformDxe/Tcg2PlatformDxe.inf {
+    <LibraryClasses>
+      TpmPlatformHierarchyLib|SecurityPkg/Library/PeiDxeTpmPlatformHierarchyLib/PeiDxeTpmPlatformHierarchyLib.inf
+  }
+!endif #MEASURED_BOOT_ENABLE
+
+
+
+  OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf
+  IntelFsp2WrapperPkg/FspWrapperNotifyDxe/FspWrapperNotifyDxe.inf
+
 
   #------------------------------
   #  Build the shell

@@ -17,8 +17,8 @@ DEFINE FD_SIZE     = 0x00850000
 DEFINE NUM_BLOCKS  = 0x850
 !else
 
-DEFINE FD_SIZE     = 0x00590000
-DEFINE NUM_BLOCKS  = 0x590
+DEFINE FD_SIZE     = 0x00650000
+DEFINE NUM_BLOCKS  = 0x650
 !endif
 
 ################################################################################
@@ -137,6 +137,19 @@ INF PcAtChipsetPkg/PcatRealTimeClockRuntimeDxe/PcatRealTimeClockRuntimeDxe.inf
   INF MdeModulePkg/Universal/FaultTolerantWriteDxe/FaultTolerantWriteSmm.inf
   INF MdeModulePkg/Universal/Variable/RuntimeDxe/VariableSmm.inf
   INF MdeModulePkg/Universal/Variable/RuntimeDxe/VariableSmmRuntimeDxe.inf
+
+!if $(SECURE_BOOT_ENABLE) == TRUE
+  INF SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigDxe.inf
+  
+!endif
+!endif
+
+!if $(MEASURED_BOOT_ENABLE) == TRUE
+  INF SecurityPkg/Tcg/Tcg2Dxe/Tcg2Dxe.inf
+  INF RuleOverride = DRIVER_ACPITABLE SecurityPkg/Tcg/Tcg2Acpi/Tcg2Acpi.inf
+  INF SecurityPkg/Tcg/Tcg2Config/Tcg2ConfigDxe.inf
+  INF SecurityPkg/Tcg/Tcg2Smm/Tcg2Smm.inf
+  INF SecurityPkg/Tcg/Tcg2PlatformDxe/Tcg2PlatformDxe.inf
 !endif
 
 INF UefiCpuPkg/CpuIo2Dxe/CpuIo2Dxe.inf
@@ -348,4 +361,14 @@ INF ShellPkg/Application/Shell/Shell.inf
 [Rule.Common.SEC.RESET_VECTOR]
   FILE RAW = $(NAMED_GUID) {
     RAW RAW                |.raw
+  }
+
+[Rule.Common.DXE_DRIVER.DRIVER_ACPITABLE]
+  FILE DRIVER = $(NAMED_GUID) {
+    DXE_DEPEX DXE_DEPEX Optional       $(INF_OUTPUT)/$(MODULE_NAME).depex
+    PE32      PE32                     $(INF_OUTPUT)/$(MODULE_NAME).efi
+    RAW ACPI  Optional                |.acpi
+    RAW ASL   Optional                |.aml
+    UI        STRING="$(MODULE_NAME)" Optional
+    VERSION   STRING="$(INF_VERSION)" Optional BUILD_NUM=$(BUILD_NUMBER)
   }
